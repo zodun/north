@@ -7,6 +7,7 @@ export const CAREER_STAGES: { value: string; sub: string }[] = [
 	{ value: "About to graduate", sub: "In the final stretch" },
 	{ value: "0 to 2 years in", sub: "Just getting started" },
 	{ value: "3 to 5 years in", sub: "Finding my stride" },
+	{ value: "6+ years in", sub: "Well established" },
 	{ value: "Building my own thing", sub: "Self-employed or founder" },
 ];
 

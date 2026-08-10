@@ -41,12 +41,21 @@ export function SocialButtons({ onError }: SocialButtonsProps) {
 	}, []);
 
 	const [, response, promptGoogle] = Google.useAuthRequest({
-		iosClientId: env.EXPO_PUBLIC_GOOGLE_OAUTH_IOS_CLIENT_ID,
-		androidClientId: env.EXPO_PUBLIC_GOOGLE_OAUTH_ANDROID_CLIENT_ID,
-		// The hook throws on the web platform if webClientId is undefined,
-		// which crashes the whole (auth) screen when previewing in a browser.
-		// The placeholder never reaches Google: googleConfigured hides the
-		// button (and onGoogle guards) whenever the real id is unset.
+		// The hook throws if the current platform's *ClientId is undefined,
+		// which crashes the whole (auth) screen whenever Google OAuth isn't
+		// configured for that platform. The placeholder never reaches Google:
+		// googleConfigured hides the button (and onGoogle guards) whenever the
+		// real id is unset.
+		iosClientId:
+			env.EXPO_PUBLIC_GOOGLE_OAUTH_IOS_CLIENT_ID ??
+			(Platform.OS === "ios"
+				? "unconfigured.apps.googleusercontent.com"
+				: undefined),
+		androidClientId:
+			env.EXPO_PUBLIC_GOOGLE_OAUTH_ANDROID_CLIENT_ID ??
+			(Platform.OS === "android"
+				? "unconfigured.apps.googleusercontent.com"
+				: undefined),
 		webClientId:
 			env.EXPO_PUBLIC_GOOGLE_OAUTH_WEB_CLIENT_ID ??
 			(Platform.OS === "web"
