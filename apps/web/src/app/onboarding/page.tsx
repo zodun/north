@@ -45,6 +45,7 @@ const CAREER_STAGE_ICONS: Record<string, keyof typeof ICONS> = {
 	"About to graduate": "rocket",
 	"0 to 2 years in": "compass",
 	"3 to 5 years in": "chart",
+	"6+ years in": "clock",
 	"Building my own thing": "pencil",
 };
 
