@@ -83,7 +83,7 @@ const VALID_RESPONSE = JSON.stringify({
 	],
 });
 
-Deno.test("parseAndValidate accepts a valid OpenAI response", () => {
+Deno.test("parseAndValidate accepts a valid DeepSeek response", () => {
 	const result = parseAndValidate(VALID_RESPONSE);
 	assertEquals(result.title, "Sharpen one skill deliberately today");
 	assertEquals(result.tasks.length, 3);

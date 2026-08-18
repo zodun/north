@@ -21,7 +21,6 @@ export const env = createEnv({
 		GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
 		APPLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
 		APPLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-		OPENAI_API_KEY: z.string().min(1).optional(),
 		SUMMARY_TRIGGER_SECRET: z.string().min(16).optional(),
 		// Cloudinary (DEC-20). All optional locally — the sign API route
 		// returns 503 if any of these aren't set, so dev without

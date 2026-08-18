@@ -1,5 +1,5 @@
 // Edge Function: reflect (AI-06)
-// Accepts a user's weekly free-text reflection, calls OpenAI to extract
+// Accepts a user's weekly free-text reflection, calls DeepSeek to extract
 // themes + alignment signal + mission nudge, writes the analysis back to
 // user_reflections, and returns the result to the client immediately.
 //
@@ -9,12 +9,13 @@
 // analyzed_at + analysis back (client RLS allows insert but not update).
 //
 // Operator setup (once per environment):
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//   supabase secrets set DEEPSEEK_API_KEY=sk-...
 //   supabase functions deploy reflect
 
 import { createClient } from "@supabase/supabase-js";
 
 import { corsHeaders, preflight } from "../_shared/cors.ts";
+import { callDeepSeekTool } from "../_shared/deepseek.ts";
 import { captureServer } from "../_shared/posthog.ts";
 import { stripDashes } from "../_shared/text.ts";
 import {
@@ -27,8 +28,6 @@ import {
 	SYSTEM_PROMPT,
 } from "./prompt.ts";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
 const MAX_BODY_LENGTH = 1000;
 
 if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
@@ -44,7 +43,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 
 		const supabaseUrl = Deno.env.get("SUPABASE_URL");
 		const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-		const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+		const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
 		if (!supabaseUrl || !serviceRole) {
 			return json({ error: "missing env" }, 500);
 		}
@@ -125,9 +124,9 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 		}
 		const reflectionId = reflection.id;
 
-		// ── Call Claude ──────────────────────────────────────────────────
+		// ── Call DeepSeek ────────────────────────────────────────────────
 		let analysis: ReflectionAnalysis;
-		if (!anthropicKey) {
+		if (!deepseekKey) {
 			// No key configured, return a stub analysis so the UI isn't blocked.
 			analysis = {
 				signal: ["showed up and reflected"],
@@ -142,32 +141,14 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 				reflection_body: body,
 			};
 			try {
-				const res = await fetch(ANTHROPIC_URL, {
-					method: "POST",
-					headers: {
-						"content-type": "application/json",
-						"x-api-key": anthropicKey,
-						"anthropic-version": ANTHROPIC_VERSION,
-					},
-					body: JSON.stringify({
-						model: MODEL_NAME,
-						max_tokens: 300,
-						system: SYSTEM_PROMPT,
-						messages: [{ role: "user", content: buildUserPrompt(payload) }],
-						tools: [REFLECT_TOOL],
-						tool_choice: { type: "tool", name: REFLECT_TOOL.name },
-					}),
-				});
-				if (!res.ok) {
-					const text = await res.text();
-					throw new Error(`Anthropic ${res.status}: ${text.slice(0, 200)}`);
-				}
-				const data = (await res.json()) as {
-					content?: { type: string; input?: unknown }[];
-				};
-				const block = (data.content ?? []).find((b) => b.type === "tool_use");
-				if (!block?.input) throw new Error("no tool_use block in response");
-				analysis = block.input as ReflectionAnalysis;
+				analysis = (await callDeepSeekTool(
+					deepseekKey,
+					MODEL_NAME,
+					SYSTEM_PROMPT,
+					buildUserPrompt(payload),
+					REFLECT_TOOL,
+					300,
+				)) as ReflectionAnalysis;
 			} catch (err) {
 				// Fallback: save the reflection body without analysis, surface the error.
 				const message = err instanceof Error ? err.message : String(err);

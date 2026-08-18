@@ -395,12 +395,11 @@ deno_version = 2
 # Secrets injected into edge functions locally. `env(...)` reads from the shell
 # environment (or a .env the CLI loads) when you run `supabase start`; if it's
 # unset you just get a warning and the AI functions use their deterministic
-# fallback. Set OPENAI_API_KEY to have plan-month / reflect generate real
-# AI output (e.g. tasks built from the user's goal). For a deployed project,
-# use `supabase secrets set OPENAI_API_KEY=sk-...` instead.
+# fallback. Set DEEPSEEK_API_KEY to have plan-month / reflect / personalize /
+# etc. generate real AI output (e.g. tasks built from the user's goal). For a
+# deployed project, use `supabase secrets set DEEPSEEK_API_KEY=sk-...` instead.
 [edge_runtime.secrets]
-ANTHROPIC_API_KEY = "env(ANTHROPIC_API_KEY)"
-OPENAI_API_KEY = "env(OPENAI_API_KEY)"
+DEEPSEEK_API_KEY = "env(DEEPSEEK_API_KEY)"
 # Telegram reminders (NOTIF-03). Bot token + @username from @BotFather; the
 # webhook secret is whatever you pass to setWebhook's secret_token.
 TELEGRAM_BOT_TOKEN = "env(TELEGRAM_BOT_TOKEN)"

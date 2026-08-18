@@ -8,7 +8,7 @@
 --   alter database postgres set app.functions_url = 'http://127.0.0.1:54321/functions/v1';
 --   -- (or the project's hosted edge functions URL)
 --   alter database postgres set app.summary_trigger_secret = '<random hex>';
---   supabase secrets set OPENAI_API_KEY=sk-...
+--   supabase secrets set DEEPSEEK_API_KEY=sk-...
 --   supabase secrets set SUMMARY_TRIGGER_SECRET=<same value as app.summary_trigger_secret>
 --   supabase functions deploy signal-summary
 

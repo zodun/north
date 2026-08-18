@@ -3,8 +3,7 @@
 // queryable by version.
 
 export const PROMPT_VERSION = "v0.3";
-// Anthropic's cheap/fast tier, ideal for short structured JSON generation.
-export const MODEL_NAME = "claude-haiku-4-5";
+export const MODEL_NAME = "deepseek-chat";
 
 export type ReflectPayload = {
 	focus_areas: string[];
@@ -43,8 +42,8 @@ export function buildUserPrompt(p: ReflectPayload): string {
 	].join("\n");
 }
 
-// Anthropic tool, forced via tool_choice so Claude returns the analysis as the
-// tool's structured `input` (the Messages API has no response_format).
+// Tool schema, forced via tool_choice so the model returns the analysis as a
+// structured function call instead of free text.
 export const REFLECT_TOOL = {
 	name: "journal_analysis",
 	description: "Record the day's signal, noise and one-line read.",

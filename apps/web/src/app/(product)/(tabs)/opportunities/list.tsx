@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/auth-client";
 import { SubmitOpportunityForm } from "./submit-form";
 
@@ -1338,19 +1339,20 @@ function Sidebar() {
 				})}
 			</nav>
 			<div className="border-black/5 border-t pt-8">
-				<a
-					href="/api/billing/checkout"
-					className="flex items-center justify-between rounded-xl px-4 py-3 font-bold text-sm transition-colors hover:bg-black/5"
+				<button
+					type="button"
+					onClick={() => toast("Premium is coming soon")}
+					className="flex w-full items-center justify-between rounded-xl px-4 py-3 font-bold text-sm transition-colors hover:bg-black/5"
 					style={{ color: ON_SURFACE }}
 				>
 					Go Beyond
 					<span
-						className="material-symbols-outlined"
-						style={{ color: PRIMARY }}
+						className="rounded-full px-2 py-0.5 font-bold text-[10px] uppercase tracking-wider"
+						style={{ color: PRIMARY, background: "rgba(0,90,194,0.1)" }}
 					>
-						arrow_forward
+						Soon
 					</span>
-				</a>
+				</button>
 			</div>
 		</aside>
 	);

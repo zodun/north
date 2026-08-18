@@ -1,5 +1,5 @@
 // Edge Function: plan-month (MONTH-02)
-// Accepts a user's self-written monthly goal + cadence, calls Claude to break
+// Accepts a user's self-written monthly goal + cadence, calls DeepSeek to break
 // it into a 4-week plan (milestone + daily action per week), then rewrites the
 // month's mission and steps to match, marking the goal as user-authored.
 //
@@ -9,12 +9,13 @@
 // freely client-writable).
 //
 // Operator setup (once per environment):
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//   supabase secrets set DEEPSEEK_API_KEY=sk-...
 //   supabase functions deploy plan-month
 
 import { createClient } from "@supabase/supabase-js";
 import { corsHeaders, preflight } from "../_shared/cors.ts";
 
+import { callDeepSeekTool } from "../_shared/deepseek.ts";
 import { captureServer } from "../_shared/posthog.ts";
 import { escapeHtml, sendMessage, telegramToken } from "../_shared/telegram.ts";
 import { stripDashes } from "../_shared/text.ts";
@@ -33,8 +34,6 @@ import {
 	SYSTEM_PROMPT,
 } from "./prompt.ts";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
 const MAX_TITLE_LENGTH = 140;
 const MAX_INTENT_LENGTH = 400;
 
@@ -76,7 +75,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 
 		const supabaseUrl = Deno.env.get("SUPABASE_URL");
 		const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-		const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+		const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
 		if (!supabaseUrl || !serviceRole) {
 			return json({ error: "missing env" }, 500);
 		}
@@ -164,10 +163,11 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 				.filter((l): l is string => Boolean(l));
 
 			let suggestion: GoalSuggestion = { goal_title: "", goal_intent: "" };
-			if (anthropicKey) {
+			if (deepseekKey) {
 				try {
-					suggestion = (await callClaudeJson(
-						anthropicKey,
+					suggestion = (await callDeepSeekTool(
+						deepseekKey,
+						MODEL_NAME,
 						SUGGEST_SYSTEM_PROMPT,
 						buildSuggestPrompt({
 							focus_areas: focusLabels,
@@ -241,15 +241,16 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 			.map((r) => r.focus_areas?.label)
 			.filter((l): l is string => Boolean(l));
 
-		// ── Build the plan (Claude, with a deterministic fallback) ───────
+		// ── Build the plan (DeepSeek, with a deterministic fallback) ─────
 		let plan: PlanResult;
 		let usedAi = false;
-		if (!anthropicKey) {
+		if (!deepseekKey) {
 			plan = fallbackPlan(goalTitle);
 		} else {
 			try {
-				const result = (await callClaudeJson(
-					anthropicKey,
+				const result = (await callDeepSeekTool(
+					deepseekKey,
+					MODEL_NAME,
 					SYSTEM_PROMPT,
 					buildUserPrompt({
 						goal_title: goalTitle,
@@ -412,44 +413,6 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 			steps: (steps ?? []) as Step[],
 		});
 	});
-}
-
-// Single-shot Claude call that returns structured JSON. The Messages API has no
-// response_format, so we force a tool call (tool_choice) and read the matching
-// tool_use block's `input`. Throws on any failure so callers can fall back.
-async function callClaudeJson(
-	apiKey: string,
-	system: string,
-	userContent: string,
-	tool: { name: string },
-	maxTokens: number,
-): Promise<unknown> {
-	const res = await fetch(ANTHROPIC_URL, {
-		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			"x-api-key": apiKey,
-			"anthropic-version": ANTHROPIC_VERSION,
-		},
-		body: JSON.stringify({
-			model: MODEL_NAME,
-			max_tokens: maxTokens,
-			system,
-			messages: [{ role: "user", content: userContent }],
-			tools: [tool],
-			tool_choice: { type: "tool", name: tool.name },
-		}),
-	});
-	if (!res.ok) {
-		const text = await res.text();
-		throw new Error(`Anthropic ${res.status}: ${text.slice(0, 200)}`);
-	}
-	const data = (await res.json()) as {
-		content?: { type: string; name?: string; input?: unknown }[];
-	};
-	const block = (data.content ?? []).find((b) => b.type === "tool_use");
-	if (!block?.input) throw new Error("no tool_use block in Claude response");
-	return block.input;
 }
 
 function json(body: unknown, status = 200): Response {

@@ -89,11 +89,11 @@ supabase db remote exec "
 For each project, set the Edge Function env. Re-link first, then run:
 
 ```bash
-supabase secrets set OPENAI_API_KEY=sk-...
+supabase secrets set DEEPSEEK_API_KEY=sk-...
 supabase secrets set SUMMARY_TRIGGER_SECRET=$(openssl rand -hex 32)
 ```
 
-You can use the same OpenAI key across environments if cost-tracking via the dashboard is sufficient; use distinct keys if you want per-environment cost reports.
+You can use the same DeepSeek key across environments if cost-tracking via the dashboard is sufficient; use distinct keys if you want per-environment cost reports.
 
 ### 6 · Web admin host env
 
@@ -107,7 +107,7 @@ SUPABASE_URL=https://<prod-ref>.supabase.co
 SUPABASE_ANON_KEY=<same anon key>
 SUPABASE_SERVICE_ROLE_KEY=<prod service-role key>
 CORS_ORIGIN=https://<admin domain>
-OPENAI_API_KEY=<if admin server actions call OpenAI>
+DEEPSEEK_API_KEY=<if admin server actions call DeepSeek>
 SUMMARY_TRIGGER_SECRET=<same as Supabase secret>
 ```
 

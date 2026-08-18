@@ -10,10 +10,10 @@ There is no central secret store (no Doppler, no Vault). Each platform that need
 
 | Where | What | How |
 |---|---|---|
-| **Supabase Edge Functions** | `OPENAI_API_KEY`, `SUMMARY_TRIGGER_SECRET`, `POSTHOG_API_KEY` (for server events) | `supabase secrets set NAME=value` |
+| **Supabase Edge Functions** | `DEEPSEEK_API_KEY`, `SUMMARY_TRIGGER_SECRET`, `POSTHOG_API_KEY` (for server events) | `supabase secrets set NAME=value` |
 | **Cloudinary** | `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (server-only); `CLOUDINARY_CLOUD_NAME` + `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` (cloud name is public) | Host env (Vercel/CF/Fly); local `apps/web/.env` |
 | **Supabase Postgres** (for `pg_cron` calls) | `app.functions_url`, `app.summary_trigger_secret` | `alter database postgres set app.<name> = '<value>'` |
-| **Next.js admin (`apps/web`)** | `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY` (if used), `CORS_ORIGIN` | Host's env (Vercel/Cloudflare/local `.env`) |
+| **Next.js admin (`apps/web`)** | `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_API_KEY` (if used), `CORS_ORIGIN` | Host's env (Vercel/Cloudflare/local `.env`) |
 | **Expo native (`apps/native`)** build-time env | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, future `EXPO_PUBLIC_POSTHOG_*` | `eas secret:create --scope project --name NAME --value value` |
 | **Local development** | All of the above | `.env.example` files document required names; copy to `.env`, fill in values from a 1Password/Bitwarden vault (operator's choice; not in repo) |
 
@@ -25,7 +25,7 @@ There is no central secret store (no Doppler, no Vault). Each platform that need
   - `apps/native/` (everything in the Expo bundle reaches the device)
   - `packages/ui/src/`, `packages/env/src/web.ts`, `packages/env/src/native.ts`, `packages/supabase/src/{browser,native}.ts`
 
-The check script enumerates the protected names (`OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CLOUDINARY_URL`, `SUMMARY_TRIGGER_SECRET`, `POSTHOG_API_KEY`) and the client-bundlable paths. Add to either list as the project grows.
+The check script enumerates the protected names (`DEEPSEEK_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CLOUDINARY_URL`, `SUMMARY_TRIGGER_SECRET`, `POSTHOG_API_KEY`) and the client-bundlable paths. Add to either list as the project grows.
 
 ## Where checks run
 
@@ -44,7 +44,7 @@ If the check finds a violation, the fix is one of:
 
 ```bash
 # Edge Function secrets
-supabase secrets set OPENAI_API_KEY=sk-...
+supabase secrets set DEEPSEEK_API_KEY=sk-...
 supabase secrets set SUMMARY_TRIGGER_SECRET=$(openssl rand -hex 32)
 supabase secrets set MISSION_TRIGGER_SECRET=$(openssl rand -hex 32)
 supabase secrets set NOTIF_TRIGGER_SECRET=$(openssl rand -hex 32)
