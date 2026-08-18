@@ -1,5 +1,5 @@
 // Deno test for the signal-summary Edge Function.
-// Mocks the OpenAI fetch and a minimal supabase-js client; asserts the
+// Mocks the DeepSeek fetch and a minimal supabase-js client; asserts the
 // expected signal_summaries upsert is produced.
 //
 // Run:  cd supabase/functions/signal-summary && deno task test
@@ -125,7 +125,7 @@ function makeStubSupabase() {
 	};
 }
 
-function makeClaudeStub(): typeof fetch {
+function makeDeepSeekStub(): typeof fetch {
 	return ((
 		_url: string | URL | Request,
 		init?: RequestInit,
@@ -143,17 +143,24 @@ function makeClaudeStub(): typeof fetch {
 		return Promise.resolve(
 			new Response(
 				JSON.stringify({
-					content: [
+					choices: [
 						{
-							type: "tool_use",
-							name: "weekly_summary",
-							input: {
-								summary:
-									"You moved on craft this week, three saves and a finish in your focus area. Tasks held in rhythm.",
-								callouts: [
+							message: {
+								tool_calls: [
 									{
-										label: "Held the deep-work block",
-										body: "Two of three days last week, including Thursday.",
+										function: {
+											name: "weekly_summary",
+											arguments: JSON.stringify({
+												summary:
+													"You moved on craft this week, three saves and a finish in your focus area. Tasks held in rhythm.",
+												callouts: [
+													{
+														label: "Held the deep-work block",
+														body: "Two of three days last week, including Thursday.",
+													},
+												],
+											}),
+										},
 									},
 								],
 							},
@@ -168,12 +175,12 @@ function makeClaudeStub(): typeof fetch {
 
 Deno.test("runSummaryJob writes one summary per scored user", async () => {
 	const stub = makeStubSupabase();
-	const fetcher = makeClaudeStub();
+	const fetcher = makeDeepSeekStub();
 
 	// biome-ignore lint/suspicious/noExplicitAny: stub supabase client shape
 	const result = await runSummaryJob({
 		supabase: stub.supabase as any,
-		anthropicKey: "sk-ant-test",
+		deepseekKey: "sk-test",
 		fetcher,
 	});
 
@@ -185,7 +192,7 @@ Deno.test("runSummaryJob writes one summary per scored user", async () => {
 	const row = stub.upserts[0]?.rows as Record<string, unknown>;
 	assertEquals(row.user_id, "user-abc");
 	assertEquals(row.prompt_version, PROMPT_VERSION);
-	assertEquals(row.model_name, "claude-haiku-4-5");
+	assertEquals(row.model_name, "deepseek-chat");
 	assertEquals(
 		typeof row.summary_text === "string" &&
 			(row.summary_text as string).length > 0,

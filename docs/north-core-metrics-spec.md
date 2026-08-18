@@ -143,7 +143,7 @@ Where the score and summary live in this codebase:
 | Daily cron schedule | `supabase/migrations/0005_signal_score_compute.sql` — `cron.schedule('signal-score-daily', '0 8 * * *', …)` (08:00 UTC = 04:00 AST) |
 | Schema extensions | `supabase/migrations/0003_signal_score_schema.sql` — adds `user_mission_tasks.abandon_count`, `signal_scores.inputs jsonb`, `signal_summaries` table |
 | RLS on summaries | `supabase/migrations/0004_signal_score_rls.sql` — own-rows read only; writes are service-role from the Edge Function |
-| AI summary | `supabase/functions/signal-summary/index.ts` — calls OpenAI (`gpt-4o-mini`, JSON-mode); UPSERTs into `signal_summaries` |
+| AI summary | `supabase/functions/signal-summary/index.ts` — calls DeepSeek (`deepseek-chat`, forced function-call for structured output); UPSERTs into `signal_summaries` |
 | Weekly summary cron | `supabase/migrations/0006_signal_summary_cron.sql` — `cron.schedule('signal-summary-weekly', '0 9 * * 0', …)` (09:00 UTC Sunday = 05:00 AST Sunday) |
 | Archetype tests | `supabase/tests/signal_score_archetypes.sql` — Streak-hero / Lurker / Avoider / Comeback |
 
@@ -154,9 +154,9 @@ The spec says *"count of distinct aligned tasks skipped or abandoned ≥ 2× in 
 
 Before the weekly summary cron will succeed:
 
-1. Set OpenAI key and trigger secret as Supabase secrets:
+1. Set DeepSeek key and trigger secret as Supabase secrets:
    ```bash
-   supabase secrets set OPENAI_API_KEY=sk-...
+   supabase secrets set DEEPSEEK_API_KEY=sk-...
    supabase secrets set SUMMARY_TRIGGER_SECRET=$(openssl rand -hex 32)
    ```
 2. Set the Edge Functions base URL on the Postgres role so `net.http_post` from cron knows where to call:
@@ -173,7 +173,7 @@ Before the weekly summary cron will succeed:
    curl -X POST -H "x-trigger-secret: $SUMMARY_TRIGGER_SECRET" \
      "https://<project-ref>.supabase.co/functions/v1/signal-summary"
    ```
-   Confirm a `signal_summaries` row appears. Cost should be < $0.001 per call (`gpt-4o-mini`).
+   Confirm a `signal_summaries` row appears. Cost should be < $0.001 per call (`deepseek-chat`).
 
 ### Verifying the cron is registered
 

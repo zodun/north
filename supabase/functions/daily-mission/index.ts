@@ -1,7 +1,7 @@
 // Edge Function: daily-mission
 // AI-01: Generate one daily mission + 3 tasks per onboarded user from
 //        their onboarding context and focus areas.
-// AI-02: Falls back to a curated template if OpenAI fails or key is absent.
+// AI-02: Falls back to a curated template if DeepSeek fails or key is absent.
 // AI-03: Cost controls, cache check before each call; logs model name,
 //        prompt version, and token count to the missions row.
 //
@@ -11,6 +11,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { DEEPSEEK_URL } from "../_shared/deepseek.ts";
 import { captureServer } from "../_shared/posthog.ts";
 import {
 	buildUserPrompt,
@@ -19,12 +20,9 @@ import {
 	MODEL_NAME,
 	PROMPT_VERSION,
 	parseAndValidate,
-	RESPONSE_SCHEMA,
 	SYSTEM_PROMPT,
 } from "./prompt.ts";
 import { pickTemplate } from "./templates.ts";
-
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 // ─────────────────────────────────────────────────────────────────────
 // Types
@@ -45,7 +43,7 @@ type GenerateResult = {
 
 type RunDeps = {
 	supabase: SupabaseClient;
-	openaiKey?: string;
+	deepseekKey?: string;
 	fetcher?: typeof fetch;
 };
 
@@ -80,7 +78,7 @@ export async function generateDailyMission(
 	supabase: SupabaseClient,
 	userId: string,
 	missionDate: string,
-	deps: { openaiKey?: string; fetcher?: typeof fetch },
+	deps: { deepseekKey?: string; fetcher?: typeof fetch },
 ): Promise<GenerateResult> {
 	// AI-03 cache: if a mission row already exists for this user × date, skip.
 	const { data: existing } = await supabase
@@ -97,18 +95,18 @@ export async function generateDailyMission(
 	// Load context from profiles, focus areas, and onboarding_responses.
 	const ctx = await loadContext(supabase, userId, missionDate);
 
-	// AI-01: attempt OpenAI generation; AI-02: fall back to template.
+	// AI-01: attempt DeepSeek generation; AI-02: fall back to template.
 	let mission: GeneratedMission;
 	let generatedBy: "ai" | "template" = "template";
 	let modelName: string | null = null;
 	let promptVersion: string | null = null;
 	let generationTokens: number | null = null;
 
-	if (deps.openaiKey) {
+	if (deps.deepseekKey) {
 		try {
-			const result = await callOpenAI(
+			const result = await callDeepSeek(
 				ctx,
-				deps.openaiKey,
+				deps.deepseekKey,
 				deps.fetcher ?? fetch,
 			);
 			mission = result.mission;
@@ -117,7 +115,7 @@ export async function generateDailyMission(
 			promptVersion = PROMPT_VERSION;
 			generationTokens = result.tokens;
 		} catch {
-			// AI-02: template fallback on any OpenAI failure.
+			// AI-02: template fallback on any DeepSeek failure.
 			mission = pickTemplate(ctx.focus_area_labels[0] ?? "", missionDate);
 			generatedBy = "template";
 		}
@@ -197,7 +195,7 @@ export async function runMissionJob(
 				deps.supabase,
 				row.user_id,
 				missionDate,
-				{ openaiKey: deps.openaiKey, fetcher: deps.fetcher },
+				{ deepseekKey: deps.deepseekKey, fetcher: deps.fetcher },
 			);
 			if (status === "cached") result.cached++;
 			else if (status === "generated") result.generated++;
@@ -268,9 +266,9 @@ async function loadContext(
 	};
 }
 
-async function callOpenAI(
+async function callDeepSeek(
 	ctx: MissionContext,
-	openaiKey: string,
+	deepseekKey: string,
 	fetcher: typeof fetch,
 ): Promise<{ mission: GeneratedMission; tokens: number }> {
 	const body = {
@@ -279,23 +277,26 @@ async function callOpenAI(
 			{ role: "system", content: SYSTEM_PROMPT },
 			{ role: "user", content: buildUserPrompt(ctx) },
 		],
-		response_format: { type: "json_schema", json_schema: RESPONSE_SCHEMA },
+		// DeepSeek's JSON mode (unlike OpenAI's json_schema) only guarantees valid
+		// JSON, not schema conformance, so parseAndValidate does the real
+		// structural check below.
+		response_format: { type: "json_object" },
 		temperature: 0.7,
 		max_tokens: 500,
 	};
 
-	const res = await fetcher(OPENAI_URL, {
+	const res = await fetcher(DEEPSEEK_URL, {
 		method: "POST",
 		headers: {
 			"content-type": "application/json",
-			authorization: `Bearer ${openaiKey}`,
+			authorization: `Bearer ${deepseekKey}`,
 		},
 		body: JSON.stringify(body),
 	});
 
 	if (!res.ok) {
 		const text = await res.text();
-		throw new Error(`OpenAI ${res.status}: ${text.slice(0, 200)}`);
+		throw new Error(`DeepSeek ${res.status}: ${text.slice(0, 200)}`);
 	}
 
 	const json = (await res.json()) as {
@@ -304,7 +305,7 @@ async function callOpenAI(
 	};
 
 	const content = json.choices?.[0]?.message?.content;
-	if (!content) throw new Error("OpenAI returned empty content");
+	if (!content) throw new Error("DeepSeek returned empty content");
 
 	const mission = parseAndValidate(content);
 	const tokens = json.usage?.total_tokens ?? 0;
@@ -324,7 +325,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 			return new Response("forbidden", { status: 403 });
 		}
 
-		const openaiKey = Deno.env.get("OPENAI_API_KEY");
+		const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
 		const supabaseUrl = Deno.env.get("SUPABASE_URL");
 		const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 		if (!supabaseUrl || !serviceRole) {
@@ -353,7 +354,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 					userId,
 					missionDate,
 					{
-						openaiKey,
+						deepseekKey,
 					},
 				);
 				return new Response(JSON.stringify(result), {
@@ -362,7 +363,10 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 				});
 			}
 
-			const result = await runMissionJob({ supabase, openaiKey }, missionDate);
+			const result = await runMissionJob(
+				{ supabase, deepseekKey },
+				missionDate,
+			);
 			return new Response(JSON.stringify(result), {
 				status: 200,
 				headers: { "content-type": "application/json" },

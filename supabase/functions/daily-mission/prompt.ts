@@ -3,7 +3,7 @@
 // attributable to the version that produced them (AI-03).
 
 export const PROMPT_VERSION = "v0.1";
-export const MODEL_NAME = "gpt-4o-mini";
+export const MODEL_NAME = "deepseek-chat";
 
 export type MissionContext = {
 	display_name: string | null;
@@ -54,45 +54,9 @@ export function buildUserPrompt(ctx: MissionContext): string {
 	return parts.join("\n");
 }
 
-export const RESPONSE_SCHEMA = {
-	name: "daily_mission",
-	schema: {
-		type: "object",
-		properties: {
-			mission: {
-				type: "object",
-				properties: {
-					title: { type: "string" },
-					intent: { type: "string" },
-				},
-				required: ["title", "intent"],
-				additionalProperties: false,
-			},
-			tasks: {
-				type: "array",
-				minItems: 3,
-				maxItems: 3,
-				items: {
-					type: "object",
-					properties: {
-						label: { type: "string" },
-						kind: {
-							type: "string",
-							enum: ["read", "write", "do", "connect", "reflect", "commit"],
-						},
-						estimate_label: { type: "string" },
-					},
-					required: ["label", "kind", "estimate_label"],
-					additionalProperties: false,
-				},
-			},
-		},
-		required: ["mission", "tasks"],
-		additionalProperties: false,
-	},
-	strict: true,
-} as const;
-
+// DeepSeek's JSON mode only guarantees valid JSON, not schema conformance
+// (unlike OpenAI's json_schema strict mode), so this does the real structural
+// validation the model's output must pass.
 export function parseAndValidate(content: string): GeneratedMission {
 	const parsed = JSON.parse(content) as {
 		mission?: { title?: string; intent?: string };
@@ -103,12 +67,14 @@ export function parseAndValidate(content: string): GeneratedMission {
 		typeof parsed.mission?.title !== "string" ||
 		typeof parsed.mission?.intent !== "string"
 	) {
-		throw new Error("OpenAI response missing mission.title or mission.intent");
+		throw new Error(
+			"DeepSeek response missing mission.title or mission.intent",
+		);
 	}
 
 	if (!Array.isArray(parsed.tasks) || parsed.tasks.length !== 3) {
 		throw new Error(
-			`OpenAI response must have exactly 3 tasks, got ${parsed.tasks?.length ?? 0}`,
+			`DeepSeek response must have exactly 3 tasks, got ${parsed.tasks?.length ?? 0}`,
 		);
 	}
 

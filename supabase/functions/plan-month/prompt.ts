@@ -6,8 +6,7 @@
 export const PROMPT_VERSION = "v0.6";
 // Days planned per week (one distinct daily task each).
 export const DAYS_PER_WEEK = 7;
-// Anthropic's cheap/fast tier, ideal for short structured JSON generation.
-export const MODEL_NAME = "claude-haiku-4-5";
+export const MODEL_NAME = "deepseek-chat";
 
 export type PlanPayload = {
 	goal_title: string;
@@ -77,8 +76,8 @@ export function buildUserPrompt(p: PlanPayload): string {
 		.join("\n");
 }
 
-// Anthropic tool, forcing this via tool_choice makes Claude return the plan as
-// the tool's structured `input` (the Messages API has no response_format).
+// Tool schema, forced via tool_choice so the model returns the plan as a
+// structured function call instead of free text.
 export const PLAN_TOOL = {
 	name: "month_plan",
 	description: "Record the 4-week plan as structured data.",
@@ -170,6 +169,7 @@ export function buildSuggestPrompt(p: SuggestPayload): string {
 		.join("\n");
 }
 
+// Tool schema, forced via tool_choice for structured output.
 export const SUGGEST_TOOL = {
 	name: "goal_suggestion",
 	description: "Record the suggested monthly goal as structured data.",

@@ -1,15 +1,16 @@
 // POST /api/task-suggestion
 // Turns a generic monthly-mission task ("learn an AI topic", "practice a skill")
-// into ONE concrete, current, actionable suggestion via Claude. Returns a small
-// JSON object the Mission page renders inline; any failure (no API key, refusal,
+// into ONE concrete, current, actionable suggestion via DeepSeek. Returns a small
+// JSON object the Mission page renders inline; any failure (no API key,
 // bad JSON, network) degrades gracefully to { suggestion: null } so the page
 // simply shows the task title with no suggestion pill.
 //
 // This route is additive, it does not touch the mission query or routing.
 
-import Anthropic from "@anthropic-ai/sdk";
 import { type NextRequest, NextResponse } from "next/server";
 import { cleanCopy } from "@/lib/text";
+
+const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
 export const runtime = "nodejs";
 
@@ -51,7 +52,8 @@ function parseSuggestion(text: string): Suggestion {
 
 export async function POST(request: NextRequest) {
 	// No key configured → no suggestion (page falls back to the plain title).
-	if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json(NONE);
+	const apiKey = process.env.DEEPSEEK_API_KEY;
+	if (!apiKey) return NextResponse.json(NONE);
 
 	let body: {
 		task?: unknown;
@@ -75,19 +77,21 @@ export async function POST(request: NextRequest) {
 		: [];
 	const week = typeof body.week === "number" ? body.week : 1;
 
-	const client = new Anthropic();
-
 	try {
-		const message = await client.messages.create({
-			// Model explicitly chosen for this lightweight suggestion task.
-			model: "claude-sonnet-4-6",
-			max_tokens: 400,
-			// Quick, scoped JSON generation, no extended thinking needed.
-			thinking: { type: "disabled" },
-			messages: [
-				{
-					role: "user",
-					content: `You are North, an AI direction coach for young Caribbean professionals aged 18-30.
+		const res = await fetch(DEEPSEEK_URL, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify({
+				// Model explicitly chosen for this lightweight suggestion task.
+				model: "deepseek-chat",
+				max_tokens: 400,
+				messages: [
+					{
+						role: "user",
+						content: `You are North, an AI direction coach for young Caribbean professionals aged 18-30.
 
 The user has this goal: "${goal}"
 Their focus areas are: ${focusAreas.join(", ") || "not specified"}
@@ -113,17 +117,17 @@ Examples of good suggestions:
 
 Be specific, current, and relevant to Caribbean/global young professionals.
 Only respond with the JSON object.`,
-				},
-			],
+					},
+				],
+			}),
 		});
 
-		// Safety classifier or model declined → no suggestion.
-		if (message.stop_reason === "refusal") return NextResponse.json(NONE);
+		if (!res.ok) return NextResponse.json(NONE);
 
-		const text = message.content
-			.filter((b): b is Anthropic.TextBlock => b.type === "text")
-			.map((b) => b.text)
-			.join("");
+		const data = (await res.json()) as {
+			choices?: { message?: { content?: string } }[];
+		};
+		const text = data.choices?.[0]?.message?.content ?? "";
 
 		return NextResponse.json(parseSuggestion(text));
 	} catch {

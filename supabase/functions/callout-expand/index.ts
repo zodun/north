@@ -7,17 +7,16 @@
 // automatically).
 //
 // Operator setup (once per environment):
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//   supabase secrets set DEEPSEEK_API_KEY=sk-...
 //   supabase functions deploy callout-expand
 
 import { createClient } from "@supabase/supabase-js";
 
 import { corsHeaders, preflight } from "../_shared/cors.ts";
+import { callDeepSeekText } from "../_shared/deepseek.ts";
 import { stripDashes } from "../_shared/text.ts";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
-const MODEL_NAME = "claude-haiku-4-5";
+const MODEL_NAME = "deepseek-chat";
 
 function json(data: unknown, status = 200): Response {
 	return new Response(JSON.stringify(data), {
@@ -40,7 +39,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 		const jwt = authHeader.slice(7);
 
 		const supabaseUrl = Deno.env.get("SUPABASE_URL");
-		const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+		const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
 		if (!supabaseUrl) return json({ error: "missing env" }, 500);
 
 		const userClient = createClient(
@@ -79,7 +78,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 			return json({ error: "invalid JSON" }, 400);
 		}
 
-		if (!anthropicKey) {
+		if (!deepseekKey) {
 			return json({
 				expansion:
 					"Small consistent patterns compound over time. Keep noticing what pulls you toward or away from your focus.",
@@ -101,32 +100,13 @@ ${directive}
 Plain prose only, two short paragraphs, roughly 120 to 180 words total. No bullet points, no headers, no dashes. Be specific to what the person actually wrote, not general advice. Speak to them directly.`;
 
 		try {
-			const res = await fetch(ANTHROPIC_URL, {
-				method: "POST",
-				headers: {
-					"content-type": "application/json",
-					"x-api-key": anthropicKey,
-					"anthropic-version": ANTHROPIC_VERSION,
-				},
-				body: JSON.stringify({
-					model: MODEL_NAME,
-					max_tokens: 500,
-					system: SYSTEM_PROMPT,
-					messages: [{ role: "user", content: userPrompt }],
-				}),
-			});
-			if (!res.ok) {
-				throw new Error(`Anthropic ${res.status}`);
-			}
-			const data = (await res.json()) as {
-				content?: { type: string; text?: string }[];
-			};
-			const text = (data.content ?? [])
-				.filter((b) => b.type === "text")
-				.map((b) => b.text ?? "")
-				.join("")
-				.trim();
-
+			const text = await callDeepSeekText(
+				deepseekKey,
+				MODEL_NAME,
+				SYSTEM_PROMPT,
+				userPrompt,
+				500,
+			);
 			return json({ expansion: stripDashes(text) || null });
 		} catch {
 			return json({ expansion: null });

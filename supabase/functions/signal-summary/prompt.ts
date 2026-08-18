@@ -47,8 +47,8 @@ function fmt(n: number | null): string {
 	return n.toFixed(2);
 }
 
-// Anthropic tool, forced via tool_choice so Claude returns the summary as the
-// tool's structured `input` (the Messages API has no response_format).
+// Tool schema, forced via tool_choice so the model returns the summary as a
+// structured function call instead of free text.
 export const SUMMARY_TOOL = {
 	name: "weekly_summary",
 	description: "Record the weekly summary and callouts.",

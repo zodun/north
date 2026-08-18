@@ -5,7 +5,7 @@
 // can't mangle them the way it can a 36-char uuid.
 
 export const PROMPT_VERSION = "v0.3";
-export const MODEL_NAME = "claude-haiku-4-5";
+export const MODEL_NAME = "deepseek-chat";
 
 export type PersonalizeContext = {
 	focus_areas: string[];
@@ -90,8 +90,8 @@ export function buildUserPrompt(
 	return lines.filter((l) => l !== undefined).join("\n");
 }
 
-// Anthropic tool, forced via tool_choice so Claude returns the ranking as the
-// tool's structured `input` (the Messages API has no response_format).
+// Tool schema, forced via tool_choice so the model returns the ranking as a
+// structured function call instead of free text.
 export const RANKING_TOOL = {
 	name: "ranking",
 	description: "Return the personalized ordering and reasons.",

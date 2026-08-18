@@ -32,7 +32,7 @@ Deno.test("captureServer · posts to PostHog endpoint with required fields", asy
 	const fired = await captureServer(
 		"signal_summary_generated",
 		"user-abc",
-		{ week_ending: "2026-05-24", model: "gpt-4o-mini" },
+		{ week_ending: "2026-05-24", model: "deepseek-chat" },
 		{ apiKey: "phc_test", host: "https://eu.i.posthog.com", fetcher: stub.fn },
 	);
 	assertEquals(fired, true);
@@ -47,7 +47,7 @@ Deno.test("captureServer · posts to PostHog endpoint with required fields", asy
 	assertEquals(body.event, "signal_summary_generated");
 	assertEquals(body.distinct_id, "user-abc");
 	assertEquals(body.properties.week_ending, "2026-05-24");
-	assertEquals(body.properties.model, "gpt-4o-mini");
+	assertEquals(body.properties.model, "deepseek-chat");
 	assertEquals(body.properties.source, "edge-function");
 	assertEquals(typeof body.timestamp, "string");
 });

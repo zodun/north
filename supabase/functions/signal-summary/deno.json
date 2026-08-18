@@ -3,6 +3,6 @@
 		"@supabase/supabase-js": "npm:@supabase/supabase-js@^2.106.2"
 	},
 	"tasks": {
-		"test": "deno test --allow-env --allow-net=api.openai.com"
+		"test": "deno test --allow-env --allow-net=api.deepseek.com"
 	}
 }

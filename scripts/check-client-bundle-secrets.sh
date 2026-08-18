@@ -4,7 +4,7 @@
 #
 # Rule of thumb (DEC-15):
 #   - NEXT_PUBLIC_* / EXPO_PUBLIC_* are intentionally public; allowed anywhere.
-#   - Everything else (OPENAI_API_KEY, SUPABASE_SERVICE_ROLE_KEY,
+#   - Everything else (DEEPSEEK_API_KEY, SUPABASE_SERVICE_ROLE_KEY,
 #     CLOUDINARY_URL, SUMMARY_TRIGGER_SECRET, …) must NEVER appear
 #     in client-bundlable paths.
 #
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 SECRET_PATTERNS=(
-    "OPENAI_API_KEY"
+    "DEEPSEEK_API_KEY"
     "SUPABASE_SERVICE_ROLE_KEY"
     "CLOUDINARY_URL"
     "CLOUDINARY_API_KEY"

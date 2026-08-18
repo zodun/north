@@ -1,20 +1,21 @@
 // Edge Function: personalize (AI-07, premium)
-// Ranks a user's For You feed or Opportunities with Claude and writes a short
+// Ranks a user's For You feed or Opportunities with DeepSeek and writes a short
 // reason for the top picks. Premium-only (public.is_premium) and cached once
 // per user per surface per day in public.user_personalization.
 //
 // The page passes candidate items as { id, label }; the function loads the
-// user's context, asks Claude to order the items (by index) + highlight the top
+// user's context, asks DeepSeek to order the items (by index) + highlight the top
 // ~8, then returns ranking [{ id, why }] best-first. Falls back to the original
 // order on any failure, so the page never blocks on AI.
 //
 // Operator setup:
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//   supabase secrets set DEEPSEEK_API_KEY=sk-...
 //   supabase functions deploy personalize
 
 import { createClient } from "@supabase/supabase-js";
 
 import { corsHeaders, preflight } from "../_shared/cors.ts";
+import { callDeepSeekTool } from "../_shared/deepseek.ts";
 import { captureServer } from "../_shared/posthog.ts";
 import {
 	buildUserPrompt,
@@ -26,8 +27,6 @@ import {
 	systemPrompt,
 } from "./prompt.ts";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
 const MAX_ITEMS = 80;
 const MAX_LABEL = 160;
 
@@ -46,7 +45,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 
 		const supabaseUrl = Deno.env.get("SUPABASE_URL");
 		const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-		const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+		const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
 		if (!supabaseUrl || !serviceRole) {
 			return json({ error: "missing env" }, 500);
 		}
@@ -108,7 +107,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 
 		// Note: no premium gate here. Free users get ranked too so the page can
 		// show a one-pick preview that drives upgrades; the per-day cache below
-		// bounds this to a single Claude call per user per surface per day, and
+		// bounds this to a single DeepSeek call per user per surface per day, and
 		// the pages decide how much of the ranking to reveal.
 
 		// ── Cache: one ranking per user/surface/day ──────────────────────
@@ -195,18 +194,21 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 			recent_noise: topUnique(recentNoise, 8),
 		};
 
-		// ── Rank with Claude (fallback = original order, uncached) ───────
+		// ── Rank with DeepSeek (fallback = original order, uncached) ─────
 		let ranking: Ranked[] | null = null;
 		let usedAi = false;
-		if (anthropicKey) {
+		if (deepseekKey) {
 			try {
-				const result = (await callClaude(
-					anthropicKey,
+				const result = (await callDeepSeekTool(
+					deepseekKey,
+					MODEL_NAME,
 					systemPrompt(surface),
 					buildUserPrompt(
 						ctx,
 						items.map((i) => i.label),
 					),
+					RANKING_TOOL,
+					1200,
 				)) as RankingResult;
 				ranking = applyRanking(items, result);
 				usedAi = true;
@@ -269,39 +271,6 @@ function applyRanking(items: Item[], result: RankingResult): Ranked[] {
 		if (!seen.has(idx + 1)) ranked.push({ id: item.id, why: "" });
 	});
 	return ranked;
-}
-
-async function callClaude(
-	apiKey: string,
-	system: string,
-	userContent: string,
-): Promise<unknown> {
-	const res = await fetch(ANTHROPIC_URL, {
-		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			"x-api-key": apiKey,
-			"anthropic-version": ANTHROPIC_VERSION,
-		},
-		body: JSON.stringify({
-			model: MODEL_NAME,
-			max_tokens: 1200,
-			system,
-			messages: [{ role: "user", content: userContent }],
-			tools: [RANKING_TOOL],
-			tool_choice: { type: "tool", name: RANKING_TOOL.name },
-		}),
-	});
-	if (!res.ok) {
-		const text = await res.text();
-		throw new Error(`Anthropic ${res.status}: ${text.slice(0, 200)}`);
-	}
-	const data = (await res.json()) as {
-		content?: { type: string; input?: unknown }[];
-	};
-	const block = (data.content ?? []).find((b) => b.type === "tool_use");
-	if (!block?.input) throw new Error("no tool_use block in response");
-	return block.input;
 }
 
 // "YYYY-MM-DD" n days before the given day, computed in UTC so it stays a pure

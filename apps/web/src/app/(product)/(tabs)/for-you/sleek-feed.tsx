@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { IdentityCrest } from "@/components/product/identity-crest";
 import { coverUrl } from "@/lib/article-image/cover";
 import { supabase } from "@/lib/auth-client";
@@ -1013,10 +1014,11 @@ function SidebarNav() {
 			</nav>
 
 			<div className="space-y-1 border-black/5 border-t pt-4 md:pt-8">
-				<a
-					href="/api/billing/checkout"
-					aria-label="Go Beyond, upgrade"
-					className="mt-4 flex items-center justify-center gap-2 rounded-xl px-0 py-3 text-center font-bold text-white text-xs uppercase tracking-wider shadow-lg transition-all hover:brightness-110 active:scale-[0.98] md:mt-6 md:px-6 md:py-4"
+				<button
+					type="button"
+					onClick={() => toast("Premium is coming soon")}
+					aria-label="Go Beyond, upgrade — coming soon"
+					className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-0 py-3 text-center font-bold text-white text-xs uppercase tracking-wider shadow-lg transition-all hover:brightness-110 active:scale-[0.98] md:mt-6 md:px-6 md:py-4"
 					style={{
 						background: PRIMARY,
 						boxShadow: "0 10px 24px rgba(0,90,194,0.2)",
@@ -1026,7 +1028,10 @@ function SidebarNav() {
 						bolt
 					</span>
 					<span className="hidden md:inline">Go Beyond</span>
-				</a>
+					<span className="hidden font-bold text-[10px] opacity-80 md:inline">
+						· Soon
+					</span>
+				</button>
 			</div>
 		</aside>
 	);

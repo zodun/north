@@ -1,5 +1,5 @@
 // Edge Function: review-opportunity
-// A user submits an opportunity; this records it, then has Claude moderate it
+// A user submits an opportunity; this records it, then has DeepSeek moderate it
 // for the public Opportunities feed:
 //   publish     → legitimate + safe: goes live in `opportunities` now
 //   reject      → clearly spam/scam/unsafe: marked rejected, not shown
@@ -9,10 +9,11 @@
 // failure, falls back to needs_human, nothing borderline auto-publishes, and a
 // submission is never silently lost.
 //
-// Operator setup: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+// Operator setup: supabase secrets set DEEPSEEK_API_KEY=sk-...
 
 import { createClient } from "@supabase/supabase-js";
 import { corsHeaders, preflight } from "../_shared/cors.ts";
+import { callDeepSeekTool } from "../_shared/deepseek.ts";
 import { stripDashes } from "../_shared/text.ts";
 import {
 	buildUserPrompt,
@@ -24,45 +25,7 @@ import {
 	SYSTEM_PROMPT,
 } from "./prompt.ts";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
 const MAX_DESC = 1200;
-
-// Single-shot Claude call returning the forced tool's structured input.
-async function callClaudeJson(
-	apiKey: string,
-	system: string,
-	userContent: string,
-	tool: { name: string },
-	maxTokens: number,
-): Promise<unknown> {
-	const res = await fetch(ANTHROPIC_URL, {
-		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			"x-api-key": apiKey,
-			"anthropic-version": ANTHROPIC_VERSION,
-		},
-		body: JSON.stringify({
-			model: MODEL_NAME,
-			max_tokens: maxTokens,
-			system,
-			messages: [{ role: "user", content: userContent }],
-			tools: [tool],
-			tool_choice: { type: "tool", name: tool.name },
-		}),
-	});
-	if (!res.ok) {
-		const text = await res.text();
-		throw new Error(`Anthropic ${res.status}: ${text.slice(0, 200)}`);
-	}
-	const data = (await res.json()) as {
-		content?: { type: string; name?: string; input?: unknown }[];
-	};
-	const block = (data.content ?? []).find((b) => b.type === "tool_use");
-	if (!block?.input) throw new Error("no tool_use block in Claude response");
-	return block.input;
-}
 
 function str(v: unknown, max = 200): string | null {
 	if (typeof v !== "string") return null;
@@ -83,7 +46,7 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 
 		const supabaseUrl = Deno.env.get("SUPABASE_URL");
 		const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-		const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+		const deepseekKey = Deno.env.get("DEEPSEEK_API_KEY");
 		if (!supabaseUrl || !serviceRole) {
 			return json({ error: "missing env" }, 500);
 		}
@@ -160,10 +123,11 @@ if (typeof Deno !== "undefined" && Deno.env.get("DENO_TESTING") !== "1") {
 			why: "",
 			tags: [],
 		};
-		if (anthropicKey) {
+		if (deepseekKey) {
 			try {
-				const r = (await callClaudeJson(
-					anthropicKey,
+				const r = (await callDeepSeekTool(
+					deepseekKey,
+					MODEL_NAME,
 					SYSTEM_PROMPT,
 					buildUserPrompt(input),
 					REVIEW_TOOL,

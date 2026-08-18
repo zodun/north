@@ -3,8 +3,7 @@
 // Bump PROMPT_VERSION when changing wording.
 
 export const PROMPT_VERSION = "v1";
-// Cheap/fast tier, moderation is a short structured-JSON decision.
-export const MODEL_NAME = "claude-haiku-4-5";
+export const MODEL_NAME = "deepseek-chat";
 
 export type OpportunityInput = {
 	title: string;
@@ -57,8 +56,8 @@ export function buildUserPrompt(o: OpportunityInput): string {
 		.join("\n");
 }
 
-// Anthropic tool, forcing this via tool_choice makes Claude return the verdict
-// as structured `input` (the Messages API has no response_format).
+// Tool schema, forced via tool_choice so the model returns the verdict as a
+// structured function call instead of free text.
 export const REVIEW_TOOL = {
 	name: "opportunity_review",
 	description: "Record the moderation decision for a submitted opportunity.",

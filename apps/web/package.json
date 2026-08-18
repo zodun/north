@@ -9,7 +9,6 @@
 		"check-types": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@anthropic-ai/sdk": "^0.104.1",
 		"@north/env": "workspace:*",
 		"@north/supabase": "workspace:*",
 		"@north/tokens": "workspace:*",
